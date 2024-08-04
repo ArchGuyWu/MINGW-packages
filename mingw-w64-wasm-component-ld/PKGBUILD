@@ -44,7 +44,7 @@ build() {
 package() {
   cd "${_realname}"
 
-  install -Dm755 target/release/wasm-component-ld -t "${pkgdir}${MINGW_PREFIX}/bin"
+  install -D target/release/wasm-component-ld -t "${pkgdir}${MINGW_PREFIX}/bin"
 
   # Package doc
   install -Dm644 README.md -t "${pkgdir}${MINGW_PREFIX}/share/doc/${_realname}"
