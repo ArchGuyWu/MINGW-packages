@@ -219,7 +219,8 @@ build() {
   if [[ ${CARCH} != i686 ]]; then
     # move wasm_targets out of the way for splitting
     for wasm_target in "$(ls dest-rust/${MINGW_PREFIX}/lib/rustlib/wasm*)"; do
-    mv dest-rust/${MINGW_PREFIX}/lib/rustlib/$wasm_target dest-wasm
+      mv dest-rust/${MINGW_PREFIX}/lib/rustlib/$wasm_target dest-wasm
+    done
 
     # move docs out of the way for splitting
     mv dest-rust/${MINGW_PREFIX}/share/doc dest-doc
