@@ -17,7 +17,7 @@ embed_manifest_url=https://gitlab.com/careyevans/embed-manifest/-/archive/v${emb
 _realname=rust
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
-         $([[ ${CARCH} == i686 ]] || echo "${MINGW_PACKAGE_PREFIX}-rust-docs")
+         $([[ ${CARCH} == i686 ]] || echo "${MINGW_PACKAGE_PREFIX}-rust-docs ${MINGW_PACKAGE_PREFIX}-rust-wasm")
          "${MINGW_PACKAGE_PREFIX}-rust-src")
 pkgver=1.80.0
 pkgrel=1
@@ -43,10 +43,13 @@ makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-python"
              "${MINGW_PACKAGE_PREFIX}-autotools"
              $([[ "$_bootstrapping" == "no" ]] && echo "${MINGW_PACKAGE_PREFIX}-rust")
+             "${MINGW_PACKAGE_PREFIX}-wasi-libc"
+             "${MINGW_PACKAGE_PREFIX}-wasm-component-ld"
              "${MINGW_PACKAGE_PREFIX}-zlib")
 source=("${rust_dist_server}/${_realname}c-${pkgver}-src.tar.gz"{,.asc}
         "${embed_manifest_url}"
         "0001-rustc-llvm-fix-libs.patch"
+        "0004-compiler-Use-wasm-ld-for-wasm-targets.patch"
         "0005-win32-config.patch"
         "0007-clang-subsystem.patch"
         "0008-disable-self-contained.patch"
@@ -57,6 +60,7 @@ sha256sums=('6f606c193f230f6b2cae4576f7b24d50f5f9b25dff11dbf9b22f787d3521d672'
             'SKIP'
             '24ef6d949c0b5b1940c1d6a7aad78d86012152fb8845a1644bc939350d7b75e2'
             '7cb1773c288ffb1c1e751edc49b1890c84bf9c362742bc5225d19d474edb73a0'
+            '56882F1A0F1404C10C7726D6CC37444F2B343E72B969BADFCB43760F80DB0F32'
             '7d1c4e49524b835a8eadc961b39f5594b12a522a1e24368999be2c7e85399e4e'
             '87955818066f02e4a39c36a789caf45c524cf4a41f04ee1b0cc685bd5205e63e'
             '7a3b5722ff576b0661f36796f088dee4ce318b5dbc3fdcd65b48972de68a0edf'
@@ -113,6 +117,10 @@ prepare() {
   fi
   apply_patch_with_msg \
     0012-vendor-embed-manifest.patch
+  if [[ $MINGW_PACKAGE_PREFIX != *-i686 ]]; then
+    apply_patch_with_msg \
+      0004-compiler-Use-wasm-ld-for-wasm-targets.patch
+  fi
 }
 
 build() {
@@ -159,6 +167,10 @@ build() {
 
   if [[ ${CARCH} == i686 ]]; then
     _rust_conf+=("--disable-docs" "--disable-compiler-docs")
+    _rust_conf+=("--target=$OSTYPE")
+  else
+    _rust_conf+=("--target="$OSTYPE wasm32-unknown-unknown wasm32-wasip1 wasm32-wasip1-threads wasm32-wasip2"")
+    export WASI_SDK_PATH=${MINGW_PREFIX}
   fi
 
   # The rust build uses git if it's available but can't handle cygwin git paths
@@ -180,7 +192,6 @@ build() {
     --localstatedir=${MINGW_PREFIX}/var/lib \
     --build=$OSTYPE \
     --host=$OSTYPE \
-    --target=$OSTYPE \
     --release-channel=stable \
     --release-description="Rev${pkgrel}, Built by MSYS2 project" \
     --enable-ninja \
@@ -245,6 +256,19 @@ package_rust() {
   install -d "$pkgdir/${MINGW_PREFIX}/share/bash-completion/completions"
   mv "${pkgdir}${MINGW_PREFIX}/etc/bash_completion.d/cargo" \
      "${pkgdir}${MINGW_PREFIX}/share/bash-completion/completions/cargo"
+}
+
+package_rust-wasm() {
+  pkgdesc="WebAssembly targets for Rust"
+  depends=("${MINGW_PACKAGE_PREFIX}-lld"
+           "${MINGW_PACKAGE_PREFIX}-rust"
+           "${MINGW_PACKAGE_PREFIX}-wasm-component-ld")
+
+  cd "${srcdir}/${MSYSTEM}"
+
+  cp -a dest-wasm/* "$pkgdir"
+  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-APACHE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE-APACHE"
+  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-MIT "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE-MIT"
 }
 
 package_rust-docs() {
