@@ -43,8 +43,7 @@ makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-python"
              "${MINGW_PACKAGE_PREFIX}-autotools"
              $([[ "$_bootstrapping" == "no" ]] && echo "${MINGW_PACKAGE_PREFIX}-rust")
-             "${MINGW_PACKAGE_PREFIX}-wasi-libc"
-             "${MINGW_PACKAGE_PREFIX}-wasm-component-ld"
+             $([[ ${CARCH} == i686 ]] || echo "${MINGW_PACKAGE_PREFIX}-wasi-libc ${MINGW_PACKAGE_PREFIX}-wasm-component-ld")
              "${MINGW_PACKAGE_PREFIX}-zlib")
 source=("${rust_dist_server}/${_realname}c-${pkgver}-src.tar.gz"{,.asc}
         "${embed_manifest_url}"
@@ -169,7 +168,7 @@ build() {
     _rust_conf+=("--disable-docs" "--disable-compiler-docs")
     _rust_conf+=("--target=$OSTYPE")
   else
-    _rust_conf+=("--target="$OSTYPE wasm32-unknown-unknown wasm32-wasip1 wasm32-wasip1-threads wasm32-wasip2"")
+    _rust_conf+=("--target=\"$OSTYPE,wasm32-unknown-unknown,wasm32-wasip1,wasm32-wasip1-threads,wasm32-wasip2\"")
     export WASI_SDK_PATH=${MINGW_PREFIX}
   fi
 
@@ -267,8 +266,8 @@ package_rust-wasm() {
   cd "${srcdir}/${MSYSTEM}"
 
   cp -a dest-wasm/* "$pkgdir"
-  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-APACHE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE-APACHE"
-  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-MIT "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE-MIT"
+  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-APACHE "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-APACHE"
+  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-MIT "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-MIT"
 }
 
 package_rust-docs() {
