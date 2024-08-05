@@ -200,6 +200,7 @@ build() {
   # Add target wasm32-*
   if [[ ${CARCH} != i686 ]]; then
     sed -i '/target = \[/a\  "wasm32-wasip1", "wasm32-wasip1-threads", "wasm32-wasip2",' "${srcdir}/${_realname}c-${pkgver}-src/config.toml"
+  fi
 
   # Building out of tree is not officially supported so we have to workaround some things like vendored deps
   cp -r ../${_realname}c-${pkgver}-src/.cargo .
