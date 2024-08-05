@@ -54,7 +54,7 @@ compression-formats = ["gz"]
 include-mingw-linker = false
 
 [target.%OSTYPE%]
-llvm-config = "%LLVM_CONFIG%"
+llvm-config = "%BINDIR%/llvm-config.exe"
 
 [target.wasm32-unknown-unknown]
 sanitizers = false
