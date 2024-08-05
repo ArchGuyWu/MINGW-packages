@@ -221,8 +221,8 @@ build() {
 
   if [[ ${CARCH} != i686 ]]; then
     # move wasm32-* targets out of the way for splitting
-    for wasm_target in "$(ls dest-rust/${MINGW_PREFIX}/lib/rustlib/wasm*)"; do
-      mv dest-rust/${MINGW_PREFIX}/lib/rustlib/$wasm_target dest-wasm
+    for wasm32_target in "$(ls dest-rust/${MINGW_PREFIX}/lib/rustlib/wasm32-*)"; do
+      mv dest-rust/${MINGW_PREFIX}/lib/rustlib/$wasm32_target dest-wasm
     done
   fi
 
