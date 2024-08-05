@@ -167,8 +167,10 @@ build() {
 
   if [[ ${CARCH} == i686 ]]; then
     _rust_conf+=("--target=$OSTYPE")
+    _rust_conf+=("--set=dist.include-mingw-linker=false")
   else
     _rust_conf+=("--target=$OSTYPE,wasm32-unknown-unknown,wasm32-wasip1,wasm32-wasip1-threads,wasm32-wasip2")
+    _rust_conf+=("--set=dist.include-mingw-linker=false,target.wasm32-wasip1.wasi-root=${MINGW_PREFIX}/share/wasi-sysroot,target.wasm32-wasip1-threads.wasi-root=${MINGW_PREFIX}/share/wasi-sysroot,target.wasm32-wasip2.wasi-root=${MINGW_PREFIX}/share/wasi-sysroot")
     export WASI_SDK_PATH=${MINGW_PREFIX}
   fi
   # Generating docs fails with the wasm32-* targets
@@ -199,7 +201,6 @@ build() {
     --enable-extended \
     --disable-llvm-static-stdcpp \
     --disable-codegen-tests \
-    --set='dist.include-mingw-linker=false' \
     --llvm-root=${MINGW_PREFIX} \
     --python=${MINGW_PREFIX}/bin/python \
     "${_rust_conf[@]}"
@@ -220,8 +221,8 @@ build() {
 
   if [[ ${CARCH} != i686 ]]; then
     # move wasm32-* targets out of the way for splitting
-    for wasm32_target in "$(ls dest-rust/${MINGW_PREFIX}/lib/rustlib/wasm32-*)"; do
-      mv dest-rust/${MINGW_PREFIX}/lib/rustlib/$wasm32_target dest-wasm
+    for wasm_target in "$(ls dest-rust/${MINGW_PREFIX}/lib/rustlib/wasm*)"; do
+      mv dest-rust/${MINGW_PREFIX}/lib/rustlib/$wasm_target dest-wasm
     done
   fi
 
