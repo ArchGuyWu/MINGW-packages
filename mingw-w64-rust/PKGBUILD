@@ -42,7 +42,6 @@ makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
              "${MINGW_PACKAGE_PREFIX}-openssl"
              "${MINGW_PACKAGE_PREFIX}-python"
              "${MINGW_PACKAGE_PREFIX}-autotools"
-             "${MINGW_PACKAGE_PREFIX}-gettext-tools"
              $([[ "$_bootstrapping" == "no" ]] && echo "${MINGW_PACKAGE_PREFIX}-rust")
              $([[ ${CARCH} == i686 ]] || echo "${MINGW_PACKAGE_PREFIX}-wasi-libc ${MINGW_PACKAGE_PREFIX}-wasm-component-ld")
              "${MINGW_PACKAGE_PREFIX}-zlib")
@@ -168,10 +167,10 @@ build() {
     LDFLAGS+=" -Wl,--large-address-aware"
   elif [[ $MINGW_PACKAGE_PREFIX != *-clang-aarch64 ]]; then
     local _unsupported_options="-march=nocona -msahf"
-    # '-march=' and '-msahf' are unsupported options for target wasm32-*
+    # Remove unsupported options for target wasm32-*
     export CFLAGS="${CFLAGS#$_unsupported_options}"
 
-    # Add '-march=' and '-msahf' for target $OSTYPE only
+    # Add options back for target $OSTYPE
     export CFLAGS_${OSTYPE//-/_}="$_unsupported_options"
   fi
 
@@ -197,6 +196,10 @@ build() {
   if [ "${_bootstrapping}" = "no" ]; then
     sed -i "/^\[build\]/a rustc = \"${_bindir}/rustc.exe\"\ncargo = \"${_bindir}/cargo.exe\"" "${srcdir}/${_realname}c-${pkgver}-src/config.toml"
   fi
+
+  # Add target wasm32-*
+  if [[ ${CARCH} != i686 ]]; then
+    sed -i '/target = \[/a\  "wasm32-wasip1", "wasm32-wasip1-threads", "wasm32-wasip2",' "${srcdir}/${_realname}c-${pkgver}-src/config.toml"
 
   # Building out of tree is not officially supported so we have to workaround some things like vendored deps
   cp -r ../${_realname}c-${pkgver}-src/.cargo .
