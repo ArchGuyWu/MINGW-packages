@@ -116,6 +116,7 @@ prepare() {
   fi
   apply_patch_with_msg \
     0012-vendor-embed-manifest.patch
+  
   if [[ ${CARCH} != i686 ]]; then
     apply_patch_with_msg \
       0004-compiler-Use-wasm-ld-for-wasm-targets.patch
@@ -165,8 +166,13 @@ build() {
   _rust_conf+=("--enable-vendor")
 
   if [[ ${CARCH} == i686 ]]; then
-    _rust_conf+=("--disable-docs" "--disable-compiler-docs")
+    _rust_conf+=("--target=$OSTYPE")
+  else
+    _rust_conf+=("--target=$OSTYPE,wasm32-unknown-unknown,wasm32-wasip1,wasm32-wasip1-threads,wasm32-wasip2")
+    export WASI_SDK_PATH=${MINGW_PREFIX}
   fi
+  # Generating docs fails with the wasm32-* targets
+  _rust_conf+=("--disable-docs" "--disable-compiler-docs")
 
   # The rust build uses git if it's available but can't handle cygwin git paths
   # so we try to make git not detect any repo with this
@@ -187,7 +193,6 @@ build() {
     --localstatedir=${MINGW_PREFIX}/var/lib \
     --build=$OSTYPE \
     --host=$OSTYPE \
-    --target=$OSTYPE \
     --release-channel=stable \
     --release-description="Rev${pkgrel}, Built by MSYS2 project" \
     --enable-ninja \
@@ -214,38 +219,10 @@ build() {
   DESTDIR="$PWD"/dest-rust ${MINGW_PREFIX}/bin/python ../${_realname}c-${pkgver}-src/x.py install "${_rust_build[@]}"
 
   if [[ ${CARCH} != i686 ]]; then
-    _rust_conf+=("--target=wasm32-unknown-unknown,wasm32-wasip1,wasm32-wasip1-threads,wasm32-wasip2")
-    export WASI_SDK_PATH=${MINGW_PREFIX}
-    # Generating docs fails with the wasm32-* targets
-    _rust_conf+=("--disable-docs" "--disable-compiler-docs")
-
-    MSYS2_ARG_CONV_EXCL="--prefix" \
-    ../${_realname}c-${pkgver}-src/configure \
-      --prefix=${MINGW_PREFIX} \
-      --host=$OSTYPE \
-      --enable-ninja \
-      --disable-llvm-static-stdcpp \
-      --disable-codegen-tests \
-      --set='dist.include-mingw-linker=false' \
-      --llvm-root=${MINGW_PREFIX} \
-      --python=${MINGW_PREFIX}/bin/python \
-      "${_rust_conf[@]}"
-    
-    rm -r .cargo
-    # Building out of tree is not officially supported so we have to workaround some things like vendored deps
-    cp -r ../${_realname}c-${pkgver}-src/.cargo .
-    sed -i "s|directory = \"vendor\"|directory = \"../${_realname}c-${pkgver}-src/vendor\"|" .cargo/config.toml
-
-    # create the install at a temporary directory
-    DESTDIR="$PWD"/dest-rust ${MINGW_PREFIX}/bin/python ../${_realname}c-${pkgver}-src/x.py install "${_rust_build[@]}"
-
     # move wasm32-* targets out of the way for splitting
     for wasm_target in "$(ls dest-rust/${MINGW_PREFIX}/lib/rustlib/wasm*)"; do
       mv dest-rust/${MINGW_PREFIX}/lib/rustlib/$wasm_target dest-wasm
     done
-
-    # move docs out of the way for splitting
-    mv dest-rust/${MINGW_PREFIX}/share/doc dest-doc
   fi
 
   # move src out of the way for splitting
@@ -295,18 +272,6 @@ package_rust-wasm() {
   cp -a dest-wasm/* "$pkgdir"
   install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-APACHE "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-APACHE"
   install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-MIT "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-MIT"
-}
-
-package_rust-docs() {
-  pkgdesc='Documentation for the Rust programming language'
-  conflicts=("${MINGW_PACKAGE_PREFIX}-${_realname}<1.52.0")
-
-  cd "${srcdir}/${MSYSTEM}"
-  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-APACHE "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-APACHE"
-  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-MIT "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-MIT"
-
-  install -d "$pkgdir"/${MINGW_PREFIX}/share/
-  cp -a dest-doc "$pkgdir"/${MINGW_PREFIX}/share/doc
 }
 
 package_rust-src() {
