@@ -17,7 +17,7 @@ embed_manifest_url=https://gitlab.com/careyevans/embed-manifest/-/archive/v${emb
 _realname=rust
 pkgbase=mingw-w64-${_realname}
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}"
-         $([[ ${CARCH} == i686 ]] || echo "${MINGW_PACKAGE_PREFIX}-rust-docs ${MINGW_PACKAGE_PREFIX}-rust-wasm")
+         $([[ ${CARCH} == i686 ]] || echo "${MINGW_PACKAGE_PREFIX}-rust-wasm")
          "${MINGW_PACKAGE_PREFIX}-rust-src")
 pkgver=1.80.0
 pkgrel=2
@@ -125,6 +125,16 @@ prepare() {
   fi
 }
 
+_pick() {
+  local p="$1" f d; shift
+  for f; do
+    d="$PWD/$p/${f#$pkgdir/}"
+    mkdir -p "$(dirname "$d")"
+    mv "$f" "$d"
+    rmdir -p --ignore-fail-on-non-empty "$(dirname "$f")"
+  done
+}
+
 build() {
   mkdir -p "${srcdir}/${MSYSTEM}" && cd "${srcdir}/${MSYSTEM}"
 
@@ -215,19 +225,28 @@ build() {
 
   if [[ ${CARCH} != i686 ]]; then
     # move wasm32-* targets out of the way for splitting
-    mkdir -p dest-wasm/${MINGW_PREFIX}/lib/rustlib
-    for _wasm32_target in "$(ls dest-rust/${MINGW_PREFIX}/lib/rustlib/wasm32-*)"; do
-      mv dest-rust/${MINGW_PREFIX}/lib/rustlib/$_wasm32_target dest-wasm/${MINGW_PREFIX}/lib/rustlib
-    done
-
-    # move docs out of the way for splitting
-    mv dest-rust/${MINGW_PREFIX}/share/doc dest-doc
+    _pick dest-wasm ${MINGW_PREFIX}/lib/rustlib/wasm32-*
   fi
 
   # move src out of the way for splitting
-  mv dest-rust/${MINGW_PREFIX}/lib/rustlib/src dest-src
+  _pick dest-src ${MINGW_PREFIX}/lib/rustlib/src
 
   rm -f dest-rust/${MINGW_PREFIX}/lib/rustlib/$OSTYPE/lib/self-contained/*
+  # delete unnecessary files, e.g. files only used for the uninstall script
+  rm -v dest-rust/${MINGW_PREFIX}/lib/rustlib/{components,install.log,rust-installer-version,uninstall.sh}
+  rm -v dest-rust/${MINGW_PREFIX}/lib/rustlib/manifest-*
+
+  # licenses for main rust package
+  local ldir="dest-rust/${MINGW_PREFIX}/share/licenses/rust" f d
+  mkdir -p "$ldir"
+  for f in dest-rust/${MINGW_PREFIX}/share/doc/*/{COPYRIGHT,LICENSE}*; do
+    d="$(dirname "$f")"
+    case $f in
+      */LICENSE-APACHE) rm -v "$f" ;;
+      *) mv -v "$f" "$ldir/${f##*/}.${d##*/}" ;;
+    esac
+    rmdir -p --ignore-fail-on-non-empty "$d"
+  done
 }
 
 check() {
@@ -243,20 +262,10 @@ package_rust() {
            "${MINGW_PACKAGE_PREFIX}-curl"
            "${MINGW_PACKAGE_PREFIX}-libxml2"
            "${MINGW_PACKAGE_PREFIX}-libssh2")
+  conflicts=("${MINGW_PACKAGE_PREFIX}-rust-docs")
+  replaces=("${MINGW_PACKAGE_PREFIX}-rust-docs")
 
   cd "${srcdir}/${MSYSTEM}"
-
-  cp -a dest-rust/* "$pkgdir"
-  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-APACHE "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE-APACHE"
-  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-MIT "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE-MIT"
-
-  # delete unnecessary files, e.g. components and manifest files only used for the uninstall script
-  cd "$pkgdir"/${MINGW_PREFIX}/lib/rustlib
-  rm components install.log manifest-* rust-installer-version uninstall.sh
-
-  install -d "$pkgdir/${MINGW_PREFIX}/share/bash-completion/completions"
-  mv "${pkgdir}${MINGW_PREFIX}/etc/bash_completion.d/cargo" \
-     "${pkgdir}${MINGW_PREFIX}/share/bash-completion/completions/cargo"
 }
 
 package_rust-wasm() {
@@ -268,31 +277,18 @@ package_rust-wasm() {
   cd "${srcdir}/${MSYSTEM}"
 
   cp -a dest-wasm/* "$pkgdir"
-  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-APACHE "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-APACHE"
-  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-MIT "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-MIT"
-}
-
-package_rust-docs() {
-  pkgdesc='Documentation for the Rust programming language'
-  conflicts=("${MINGW_PACKAGE_PREFIX}-${_realname}<1.52.0")
-
-  cd "${srcdir}/${MSYSTEM}"
-  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-APACHE "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-APACHE"
-  install -Dm644 ${srcdir}/${_realname}c-${pkgver}-src/LICENSE-MIT "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-MIT"
-
-  install -d "$pkgdir"/${MINGW_PREFIX}/share/
-  cp -a dest-doc "$pkgdir"/${MINGW_PREFIX}/share/doc
+  install -Dt "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname" -m644 \
+    ${srcdir}/${_realname}c-${pkgver}-src/{COPYRIGHT,LICENSE-MIT}
 }
 
 package_rust-src() {
   pkgdesc='Source code for the Rust standard library (mingw-w64)'
 
   cd "${srcdir}/${MSYSTEM}"
-  install -Dm644 "${srcdir}"/${_realname}c-${pkgver}-src/LICENSE-APACHE "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-APACHE"
-  install -Dm644 "${srcdir}"/${_realname}c-${pkgver}-src/LICENSE-MIT "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname/LICENSE-MIT"
 
-  install -d "${pkgdir}/${MINGW_PREFIX}/lib/rustlib/"
-  cp -a dest-src "${pkgdir}/${MINGW_PREFIX}/lib/rustlib/src"
+  cp -a dest-src/* "$pkgdir"
+  install -Dt "${pkgdir}${MINGW_PREFIX}/share/licenses/$pkgname" -m644 \
+    ${srcdir}/${_realname}c-${pkgver}-src/{COPYRIGHT,LICENSE-MIT}
 }
 
 # template start; name=mingw-w64-splitpkg-wrappers; version=1.0;
