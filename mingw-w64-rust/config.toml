@@ -44,7 +44,6 @@ debuginfo-level-std = 2
 channel = "stable"
 description = "Rev%PKGREL%, Built by MSYS2 project"
 rpath = false
-frame-pointers = true
 codegen-tests = false
 deny-warnings = false
 backtrace-on-ice = true
