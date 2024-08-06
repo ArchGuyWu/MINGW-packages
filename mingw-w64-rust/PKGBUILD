@@ -266,6 +266,8 @@ package_rust() {
   replaces=("${MINGW_PACKAGE_PREFIX}-rust-docs")
 
   cd "${srcdir}/${MSYSTEM}"
+
+  cp -a dest-rust/* "$pkgdir"
 }
 
 package_rust-wasm() {
