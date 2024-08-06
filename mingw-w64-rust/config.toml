@@ -31,7 +31,7 @@ sanitizers = true
 profiler = true
 
 # Generating docs fails with the wasm32-* targets
-docs = %BUILD_DOCS%
+docs = false
 
 [install]
 prefix = "%PREFIX%"
