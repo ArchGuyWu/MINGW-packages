@@ -161,9 +161,7 @@ build() {
     export CARGO_TARGET_${CARCH^^}_PC_WINDOWS_GNU_LINKER="${CC}"
   fi
 
-  local _build_docs=true
   if [[ ${CARCH} == i686 ]]; then
-    _build_docs=false
     LDFLAGS+=" -Wl,--large-address-aware"
   elif [[ $MINGW_PACKAGE_PREFIX != *-clang-aarch64 ]]; then
     local _unsupported_options="-march=nocona -msahf"
@@ -191,7 +189,6 @@ build() {
   sed -i "s|%PREFIX%|${MINGW_PREFIX}|g" "${srcdir}/${_realname}c-${pkgver}-src/config.toml"
   sed -i "s|%OSTYPE%|${OSTYPE}|g" "${srcdir}/${_realname}c-${pkgver}-src/config.toml"
   sed -i "s|%PKGREL%|${pkgrel}|g" "${srcdir}/${_realname}c-${pkgver}-src/config.toml"
-  sed -i "s|%BUILD_DOCS%|${_build_docs}|g" "${srcdir}/${_realname}c-${pkgver}-src/config.toml"
   sed -i "s|%BINDIR%|${_bindir}|g" "${srcdir}/${_realname}c-${pkgver}-src/config.toml"
   if [ "${_bootstrapping}" = "no" ]; then
     sed -i "/^\[build\]/a rustc = \"${_bindir}/rustc.exe\"\ncargo = \"${_bindir}/cargo.exe\"" "${srcdir}/${_realname}c-${pkgver}-src/config.toml"
